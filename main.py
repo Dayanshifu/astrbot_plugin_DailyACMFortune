@@ -121,22 +121,22 @@ class FortunePlugin(Star):
         except Exception as e:
             logger.error(f"保存运势数据失败: {e}")
 
-    def get_user_fortune_key(self, user_name: str, group_id: str, today: datetime) -> str:
-        """生成用户运势的唯一键，结合用户ID和群ID"""
+    def get_user_fortune_key(self, user_name: str, today: datetime) -> str:
+        """生成用户运势的唯一键，只基于用户ID和日期"""
         today_str = today.strftime("%Y-%m-%d")
-        return f"{user_name}_{group_id}_{today_str}"
+        return f"{user_name}_{today_str}"
 
-    def get_user_fortune(self, user_name: str, group_id: str, today: datetime) -> dict:
+    def get_user_fortune(self, user_name: str, today: datetime) -> dict:
         """获取用户今日运势，如果不存在则生成新的"""
         today_str = today.strftime("%Y-%m-%d")
-        fortune_key = self.get_user_fortune_key(user_name, group_id, today_str)
+        fortune_key = self.get_user_fortune_key(user_name, today_str)
         
         # 检查是否有当天的运势记录
         if fortune_key in self.fortune_data:
             return self.fortune_data[fortune_key]
         
         # 生成新的运势
-        # 使用固定种子确保同一天同一用户在不同群的运势一致
+        # 使用固定种子确保同一天同一用户的运势一致
         seed_str = f"{user_name}_{today_str}"
         seed = int(hashlib.md5(seed_str.encode('utf-8')).hexdigest(), 16)
         random.seed(seed)
@@ -189,8 +189,7 @@ class FortunePlugin(Star):
             "quote": quote,
             "special_event": special_event[0] if special_event else None,
             "random_events": random_events,
-            "user_name": user_name,
-            "group_id": group_id
+            "user_name": user_name
         }
         
         self.fortune_data[fortune_key] = new_fortune
@@ -221,10 +220,9 @@ class FortunePlugin(Star):
         """这是一个hello world指令"""
         today = datetime.now()
         user_name = event.get_sender_name()
-        group_id = event.get_group_id() if event.is_group_message() else "private"
         
-        # 获取用户运势
-        user_fortune = self.get_user_fortune(user_name, group_id, today)
+        # 获取用户运势（不再考虑群ID）
+        user_fortune = self.get_user_fortune(user_name, today)
         
         # 发送运势结果
         yield event.plain_result(f"{user_name}的运势\n{user_fortune['quote']}")
