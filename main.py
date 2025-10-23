@@ -215,24 +215,30 @@ class FortunePlugin(Star):
         
         # 发送运势结果，使用用户昵称
         yield event.plain_result(f"{user_name}的运势\n{user_fortune['quote']}")
-
-    @filter.on_message()
-    async def handle_message(self, event: AstrMessageEvent):
-        """处理所有消息，检测是否包含运势关键词"""
-        message = (await event.get_message()).strip()
         
-        # 检测是否包含运势关键词
-        fortune_keywords = ["运势", "今日人品", "查运势", "今日运势", "运气"]
-        if any(keyword in message for keyword in fortune_keywords):
-            today = datetime.now()
-            user_id = str(await event.get_sender_id()) 
-            user_name = await event.get_sender_name() 
-                
-            # 获取用户运势
-            user_fortune = self.get_user_fortune(user_id, user_name, today)
+    @filter.event_message_type(filter.EventMessageType.ALL)
+    async def on_all_message(self, event: AstrMessageEvent):
+        """处理所有消息，检测是否包含运势关键词"""
+        try:
+            # 异步获取消息内容
+            message = (await event.get_message()).strip()
             
-            # 发送运势结果，使用用户昵称
-            yield await event.plain_result(f"{user_name}的运势\n{user_fortune['quote']}")
+            # 检测是否包含运势关键词
+            fortune_keywords = ["运势", "今日人品", "查运势", "今日运势", "运气"]
+            if any(keyword in message for keyword in fortune_keywords):
+                today = datetime.now()
+                # 异步获取用户信息
+                user_id = str(await event.get_sender_id())
+                user_name = await event.get_sender_name()
+                
+                # 获取用户运势
+                user_fortune = self.get_user_fortune(user_id, user_name, today)
+                
+                # 异步发送运势结果
+                await event.plain_result(f"{user_name}的运势\n{user_fortune['quote']}")
+                
+        except Exception as e:
+            logger.error(f"处理运势请求时出错: {e}")
 
     async def terminate(self):
         """可选择实现异步的插件销毁方法，当插件被卸载/停用时会调用。"""
