@@ -1,0 +1,2 @@
+# astrbot_plugin_DailyACMFortune
+洛谷运势生成
