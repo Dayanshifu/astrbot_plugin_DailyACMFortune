@@ -135,22 +135,22 @@ class FortunePlugin(Star):
         random_events = random.sample(events_list, 4)
         
         # 构建运势结果
-        quote = f"§ {fortune_level} §\n"
+        quote = f"§ {fortune_level} §\n\n"
         
         if fortune_level == "大吉":
             if special_event:
                 quote += (f"宜:{special_event[0]}\n")
                 quote += (f"{special_event[1]}\n")
                 quote += (f"宜:{random_events[0][0]}\n")
-                quote += (f"{random_events[0][1]}\n")
+                quote += (f"{random_events[0][1]}")
             else:
                 quote += (f"宜:{random_events[0][0]}\n")
                 quote += (f"{random_events[0][1]}\n")
                 quote += (f"宜:{random_events[1][0]}\n")
-                quote += (f"{random_events[1][1]}\n")
-            quote += ("万事皆宜")
+                quote += (f"{random_events[1][1]}")
+            quote += ("\n\n万事皆宜")
         elif fortune_level == "大凶":
-            quote += ("诸事不宜\n")
+            quote += ("诸事不宜\n\n")
             quote += (f"忌:{random_events[2][0]}\n")
             quote += (f"{random_events[2][2]}\n")
             quote += (f"忌:{random_events[3][0]}\n")
@@ -166,6 +166,7 @@ class FortunePlugin(Star):
                 quote += (f"{random_events[0][1]}\n")
                 quote += (f"宜:{random_events[1][0]}\n")
                 quote += (f"{random_events[1][1]}\n")
+            quote += ("\n")
             quote += (f"忌:{random_events[2][0]}\n")
             quote += (f"{random_events[2][2]}\n")
             quote += (f"忌:{random_events[3][0]}\n")
