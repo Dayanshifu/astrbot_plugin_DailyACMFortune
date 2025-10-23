@@ -5,7 +5,6 @@ import random
 from datetime import datetime
 import json
 import os
-import hashlib
 
 events_list = [
     ["背诵课文", "看一遍就背下来了", "记忆力只有 50 Byte"],
@@ -121,26 +120,16 @@ class FortunePlugin(Star):
         except Exception as e:
             logger.error(f"保存运势数据失败: {e}")
 
-    def get_user_fortune_key(self, user_name: str, today: datetime) -> str:
-        """生成用户运势的唯一键，只基于用户ID和日期"""
+    def get_user_fortune(self, user_id: str, user_name: str, today: datetime) -> dict:
         today_str = today.strftime("%Y-%m-%d")
-        return f"{user_name}_{today_str}"
-
-    def get_user_fortune(self, user_name: str, today: datetime) -> dict:
-        """获取用户今日运势，如果不存在则生成新的"""
-        today_str = today.strftime("%Y-%m-%d")
-        fortune_key = self.get_user_fortune_key(user_name, today_str)
         
-        # 检查是否有当天的运势记录
-        if fortune_key in self.fortune_data:
-            return self.fortune_data[fortune_key]
+        # 检查是否有当天的运势记录，按QQ号匹配
+        if user_id in self.fortune_data:
+            user_record = self.fortune_data[user_id]
+            if user_record.get("date") == today_str:
+                return user_record
         
         # 生成新的运势
-        # 使用固定种子确保同一天同一用户的运势一致
-        seed_str = f"{user_name}_{today_str}"
-        seed = int(hashlib.md5(seed_str.encode('utf-8')).hexdigest(), 16)
-        random.seed(seed)
-        
         fortune_level, special_event = self.generate_fortune(today)
         random_events = random.sample(events_list, 4)
         
@@ -189,14 +178,11 @@ class FortunePlugin(Star):
             "quote": quote,
             "special_event": special_event[0] if special_event else None,
             "random_events": random_events,
-            "user_name": user_name
+            "user_name": user_name  # 保存用户昵称
         }
         
-        self.fortune_data[fortune_key] = new_fortune
+        self.fortune_data[user_id] = new_fortune
         self.save_data()
-        
-        # 恢复随机种子
-        random.seed()
         
         return new_fortune
 
@@ -219,12 +205,13 @@ class FortunePlugin(Star):
     async def helloworld(self, event: AstrMessageEvent):
         """这是一个hello world指令"""
         today = datetime.now()
-        user_name = event.get_sender_name()
+        user_id = str(event.get_sender_id())  # 获取用户QQ号
+        user_name = event.get_sender_name()  # 获取用户昵称
         
-        # 获取用户运势（不再考虑群ID）
-        user_fortune = self.get_user_fortune(user_name, today)
+        # 获取用户运势
+        user_fortune = self.get_user_fortune(user_id, user_name, today)
         
-        # 发送运势结果
+        # 发送运势结果，使用用户昵称
         yield event.plain_result(f"{user_name}的运势\n{user_fortune['quote']}")
 
     async def terminate(self):
