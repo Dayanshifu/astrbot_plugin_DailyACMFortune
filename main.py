@@ -105,7 +105,6 @@ class FortunePlugin(Star):
         """可选择实现异步的插件初始化方法，当实例化该插件类之后会自动调用该方法。"""
     
     def load_data(self):
-        """加载本地存储的运势数据"""
         if os.path.exists(DATA_FILE):
             try:
                 with open(DATA_FILE, "r", encoding="utf-8") as f:
@@ -115,7 +114,6 @@ class FortunePlugin(Star):
                 self.fortune_data = {}
 
     def save_data(self):
-        """保存运势数据到本地"""
         try:
             with open(DATA_FILE, "w", encoding="utf-8") as f:
                 json.dump(self.fortune_data, f, ensure_ascii=False, indent=2)
@@ -124,18 +122,12 @@ class FortunePlugin(Star):
 
     def get_user_fortune(self, user_id: str, user_name: str, today: datetime) -> dict:
         today_str = today.strftime("%Y-%m-%d")
-        
-        # 检查是否有当天的运势记录，按QQ号匹配
         if user_id in self.fortune_data:
             user_record = self.fortune_data[user_id]
             if user_record.get("date") == today_str:
                 return user_record
-        
-        # 生成新的运势
         fortune_level, special_event = self.generate_fortune(today)
         random_events = random.sample(events_list, 4)
-        
-        # 构建运势结果
         quote = f"§ {fortune_level} §\n\n"
         
         if fortune_level == "大吉":
@@ -172,15 +164,13 @@ class FortunePlugin(Star):
             quote += (f"{random_events[2][2]}\n")
             quote += (f"忌:{random_events[3][0]}\n")
             quote += (f"{random_events[3][2]}")
-        
-        # 保存新运势
         new_fortune = {
             "date": today_str,
             "fortune_level": fortune_level,
             "quote": quote,
             "special_event": special_event[0] if special_event else None,
             "random_events": random_events,
-            "user_name": user_name  # 保存用户昵称
+            "user_name": user_name
         }
         
         self.fortune_data[user_id] = new_fortune
@@ -189,7 +179,6 @@ class FortunePlugin(Star):
         return new_fortune
 
     def generate_fortune(self, today: datetime):
-        """生成今日运势"""
         month = today.month
         day = today.day
         special_event = special_events.get((month, day))
@@ -203,18 +192,15 @@ class FortunePlugin(Star):
             selected_level = random.choices(levels, weights=weights, k=1)[0]
             return selected_level, None
 
+    # 注册指令的装饰器。指令名为 helloworld。注册成功后，发送 `/helloworld` 就会触发这个指令，并回复 `你好, {user_name}!`
     @filter.command("运势", alias={"今日人品", "查运势", "今日运势", "运气"})
     async def helloworld(self, event: AstrMessageEvent):
         """这是一个hello world指令"""
         today = datetime.now()
-        user_id = str(event.get_sender_id())  # 获取用户QQ号
-        user_name = event.get_sender_name()  # 获取用户昵称
-        
-        # 获取用户运势
+        user_id = str(event.get_sender_id())
+        user_name = event.get_sender_name()
         user_fortune = self.get_user_fortune(user_id, user_name, today)
-        
-        # 发送运势结果，使用用户昵称
-        yield event.plain_result(f"{user_name}的运势\n{user_fortune['quote']}")
+        yield event.plain_result(f"{user_name}的运势\n{user_fortune['quote']}")# 发送一条纯文本消息
         
 
     async def terminate(self):
