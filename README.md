@@ -1,2 +1,2 @@
-# astrbot_plugin_DailyACMFortune
+# astrbot_plugin_dailyacmfortune
 洛谷运势生成
