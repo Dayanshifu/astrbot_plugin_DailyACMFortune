@@ -92,7 +92,7 @@ special_fortune_levels = [
 
 DATA_FILE = "fortune_data.json"
 
-@register("astrbot_plugin_dailyacmfortune", "Dayanshifu", "洛谷运势", "1.0.0", "https://github.com/Dayanshifu/astrbot_plugin_dailyacmfortune")
+@register("astrbot_plugin_dailyacmfortune", "Dayanshifu", "洛谷运势生成和签到打卡", "1.0.0", "https://github.com/Dayanshifu/astrbot_plugin_dailyacmfortune")
 class FortunePlugin(Star):
     def __init__(self, context: Context):
         super().__init__(context)
