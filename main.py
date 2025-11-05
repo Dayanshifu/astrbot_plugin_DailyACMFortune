@@ -2,7 +2,7 @@ from astrbot.api.event import filter, AstrMessageEvent, MessageEventResult
 from astrbot.api.star import Context, Star, register
 from astrbot.api import logger
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import os
 
@@ -26,8 +26,6 @@ events_list = [
     ["装弱", "谦虚最好了", "被看穿"],
     ["熬夜", "事情终究是可以完成的", "爆肝"],
     ["出行", "一路顺风", "路途必然坎坷"],
-    ["打chunithm", "您虹了", "今天状态不好"],
-    ["打sdvx", "您暴了", "今天状态不好"],
     ["扶老奶奶过马路", "RP++", "会被讹"],
     ["搞基", "友谊地久天长", "会被掰弯"],
     ["祭祀", "获得祖宗的庇护", "祖宗不知干啥就不鸟你"],
@@ -66,7 +64,6 @@ events_list = [
     ["学新算法", "看一遍就懂了", "怎么也学不会"],
     ["造数据", "严谨数据，经久耐用", "数据出锅，当众谢罪"],
 ]
-
 special_events = {
     (6, 7): ["高考", "考的全会，蒙的全对"],
     (6, 8): ["高考", "考的全会，蒙的全对"],
@@ -94,6 +91,7 @@ special_fortune_levels = [
 ]
 
 DATA_FILE = "fortune_data.json"
+
 @register("astrbot_plugin_DailyACMFortune", "Dayanshifu", "洛谷运势", "1.0.0", "https://github.com/Dayanshifu/astrbot_plugin_DailyACMFortune")
 class FortunePlugin(Star):
     def __init__(self, context: Context):
@@ -120,12 +118,61 @@ class FortunePlugin(Star):
         except Exception as e:
             logger.error(f"保存运势数据失败: {e}")
 
+    def get_continuous_days(self, user_id: str, today: datetime) -> int:
+        if user_id not in self.fortune_data:
+            return 0
+            
+        user_record = self.fortune_data[user_id]
+        if "checkin_history" not in user_record:
+            return 0
+            
+        checkin_dates = user_record["checkin_history"]
+        if not checkin_dates:
+            return 0
+            
+        # 按日期排序
+        sorted_dates = sorted(checkin_dates, reverse=True)
+        
+        # 检查连续打卡
+        continuous_days = 0
+        current_date = today.date()
+        
+        for i, date_str in enumerate(sorted_dates):
+            checkin_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+            expected_date = current_date - timedelta(days=i)
+            
+            if checkin_date == expected_date:
+                continuous_days += 1
+            else:
+                break
+                
+        return continuous_days
+
+    def update_checkin_history(self, user_id: str, today: datetime):
+        today_str = today.strftime("%Y-%m-%d")
+        
+        if user_id not in self.fortune_data:
+            self.fortune_data[user_id] = {"checkin_history": []}
+        elif "checkin_history" not in self.fortune_data[user_id]:
+            self.fortune_data[user_id]["checkin_history"] = []
+            
+        if today_str not in self.fortune_data[user_id]["checkin_history"]:
+            self.fortune_data[user_id]["checkin_history"].append(today_str)
+            self.fortune_data[user_id]["checkin_history"] = self.fortune_data[user_id]["checkin_history"][-30:]
+
     def get_user_fortune(self, user_id: str, user_name: str, today: datetime) -> dict:
         today_str = today.strftime("%Y-%m-%d")
+        
+        self.update_checkin_history(user_id, today)
+        
+        continuous_days = self.get_continuous_days(user_id, today)
+        
         if user_id in self.fortune_data:
             user_record = self.fortune_data[user_id]
             if user_record.get("date") == today_str:
+                user_record["continuous_days"] = continuous_days
                 return user_record
+                
         fortune_level, special_event = self.generate_fortune(today)
         random_events = random.sample(events_list, 4)
         quote = f"§ {fortune_level} §\n\n"
@@ -164,16 +211,18 @@ class FortunePlugin(Star):
             quote += (f"{random_events[2][2]}\n")
             quote += (f"忌:{random_events[3][0]}\n")
             quote += (f"{random_events[3][2]}")
+            
         new_fortune = {
             "date": today_str,
             "fortune_level": fortune_level,
             "quote": quote,
             "special_event": special_event[0] if special_event else None,
             "random_events": random_events,
-            "user_name": user_name
+            "user_name": user_name,
+            "continuous_days": continuous_days
         }
         
-        self.fortune_data[user_id] = new_fortune
+        self.fortune_data[user_id].update(new_fortune)
         self.save_data()
         
         return new_fortune
@@ -192,16 +241,19 @@ class FortunePlugin(Star):
             selected_level = random.choices(levels, weights=weights, k=1)[0]
             return selected_level, None
 
-    # 注册指令的装饰器。指令名为 helloworld。注册成功后，发送 `/helloworld` 就会触发这个指令，并回复 `你好, {user_name}!`
-    @filter.command("运势", alias={"今日人品", "查运势", "今日运势", "运气"})
+    @filter.command("运势", alias={"今日人品", "运势", "今日运势", "运气", "签到", "打卡"})
     async def helloworld(self, event: AstrMessageEvent):
-        """这是一个hello world指令"""
         today = datetime.now()
         user_id = str(event.get_sender_id())
         user_name = event.get_sender_name()
         user_fortune = self.get_user_fortune(user_id, user_name, today)
-        yield event.plain_result(f"{user_name}的运势\n{user_fortune['quote']}")# 发送一条纯文本消息
         
+        continuous_days = user_fortune.get("continuous_days", 0)
+        header = f"{user_name}的运势"
+        if continuous_days > 0:
+            header = f"你已经连续打卡了{continuous_days}天\n{header}"
+            
+        yield event.plain_result(f"{header}\n{user_fortune['quote']}")
 
     async def terminate(self):
         """可选择实现异步的插件销毁方法，当插件被卸载/停用时会调用。"""
